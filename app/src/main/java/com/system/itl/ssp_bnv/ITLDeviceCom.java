@@ -6,9 +6,13 @@ import device.itl.sspcoms.BarCodeReader;
 import device.itl.sspcoms.DeviceEvent;
 import device.itl.sspcoms.DeviceEventListener;
 import device.itl.sspcoms.DeviceFileUpdateListener;
+import device.itl.sspcoms.DevicePayoutEventListener;
 import device.itl.sspcoms.DeviceSetupListener;
+import device.itl.sspcoms.ItlCurrency;
+import device.itl.sspcoms.PayoutRoute;
 import device.itl.sspcoms.SSPComsConfig;
 import device.itl.sspcoms.SSPDevice;
+import device.itl.sspcoms.SSPPayoutEvent;
 import device.itl.sspcoms.SSPSystem;
 import device.itl.sspcoms.SSPUpdate;
 
@@ -16,7 +20,7 @@ import device.itl.sspcoms.SSPUpdate;
  * Created by tbeswick on 05/04/2017.
  */
 
-public class ITLDeviceCom extends Thread implements DeviceSetupListener, DeviceEventListener, DeviceFileUpdateListener {
+public class ITLDeviceCom extends Thread implements DeviceSetupListener, DeviceEventListener, DeviceFileUpdateListener, DevicePayoutEventListener {
 
 
     private static boolean isrunning = false;
@@ -37,6 +41,7 @@ public class ITLDeviceCom extends Thread implements DeviceSetupListener, DeviceE
         ssp.setOnDeviceSetupListener(this);
         ssp.setOnEventUpdateListener(this);
         ssp.setOnDeviceFileUpdateListener(this);
+        ssp.setOnPayoutEventListener(this);
 
     }
 
@@ -158,6 +163,18 @@ public class ITLDeviceCom extends Thread implements DeviceSetupListener, DeviceE
     }
 
 
+    @Override
+    public void OnNewPayoutEvent(final SSPPayoutEvent ev) {
+
+        MainActivity.mainActivity.runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                MainActivity.DisplayPayoutEvents(ev);
+            }
+        });
+
+    }
+
 
     @Override
     public void OnFileUpdateStatus(final SSPUpdate sspUpdate) {
@@ -228,5 +245,26 @@ public class ITLDeviceCom extends Thread implements DeviceSetupListener, DeviceE
         }
     }
 
+    void SetPayoutRoute(ItlCurrency cur, PayoutRoute rt)
+    {
+        if(ssp != null) {
+            ssp.SetPayoutRoute(cur, rt);
+        }
+    }
+
+
+    void PayoutAmount(ItlCurrency cur)
+    {
+        if(ssp != null) {
+            ssp.PayoutAmount(cur);
+        }
+    }
+
+    void EmptyPayout()
+    {
+        if(ssp != null){
+            ssp.EmptyPayout();
+        }
+    }
 
 }

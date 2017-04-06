@@ -19,11 +19,13 @@ import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.WindowManager;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.CompoundButton;
 import android.widget.LinearLayout;
 import android.widget.ListView;
+import android.widget.NumberPicker;
 import android.widget.ProgressBar;
 import android.widget.Switch;
 import android.widget.TextView;
@@ -33,23 +35,28 @@ import com.ftdi.j2xx.D2xxManager;
 import com.ftdi.j2xx.FT_Device;
 
 
+import org.w3c.dom.Text;
+
 import java.io.DataInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 import device.itl.sspcoms.BarCodeReader;
 import device.itl.sspcoms.DeviceEvent;
 import device.itl.sspcoms.ItlCurrency;
+import device.itl.sspcoms.PayoutRoute;
 import device.itl.sspcoms.SSPDevice;
 import device.itl.sspcoms.SSPDeviceType;
+import device.itl.sspcoms.SSPPayoutEvent;
 import device.itl.sspcoms.SSPSystem;
 import device.itl.sspcoms.SSPUpdate;
 
-
 public class MainActivity extends AppCompatActivity {
+
 
     private static ITLDeviceCom deviceCom;
     private static D2xxManager ftD2xx = null;
@@ -64,25 +71,35 @@ public class MainActivity extends AppCompatActivity {
     static Button bttnAccept;
     static Button bttnReject;
     static Switch swEscrow;
+    static Button bttnPay;
+    static Button bttnEmpty;
     static TextView txtFirmware;
     static TextView txtDevice;
     static TextView txtDataset;
     static TextView txtSerial;
+    static LinearLayout lPayoutControl;
+    static TextView txtPayoutStatus;
+    static TextView txtConnect;
+    static ProgressBar prgConnect;
 
-
+    static ArrayList<HashMap<String, String>> list;
+    static String[] pickerValues;
     static ProgressDialog progress;
     static List<String> channelValues;
     static String[] eventValues;
     static ArrayAdapter<String> adapterChannels;
     static ArrayAdapter<String> adapterEvents;
+    //static NumberPicker numPayAmount;
 
     private static SSPDevice sspDevice = null;
     private SSPUpdate sspUpdate = null;
     private static MainActivity instance = null;
+    private static String m_DeviceCountry = null;
 
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
@@ -90,15 +107,24 @@ public class MainActivity extends AppCompatActivity {
 
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
-        bvDisplay = (LinearLayout) findViewById(R.id.content_bill_validator);
+        bvDisplay = (LinearLayout) findViewById(R.id.content_note_float);
         bvDisplay.setVisibility(View.INVISIBLE);
         mainActivity = this;
         this.instance = this;
 
+        lPayoutControl = (LinearLayout) findViewById(R.id.layPayoutControl);
+        txtPayoutStatus = (TextView) findViewById(R.id.txtPayoutProgress);
+        txtPayoutStatus.setText("");
+
+
+        prgConnect = (ProgressBar)findViewById(R.id.progressBarConnect);
+        txtConnect = (TextView)findViewById(R.id.txtConnection);
+
+
         progress = new ProgressDialog(MainActivity.this);
 
 
-        setTitle("Bill Validator");
+        setTitle("Note Float");
 
         listEvents = (ListView) findViewById(R.id.listEvents);
         listChannels = (ListView) findViewById(R.id.listChannels);
@@ -148,7 +174,11 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View view) {
                 openDevice();
                 if (ftDev != null) {
-                    deviceCom.setup(ftDev, 0, false, false, 0);
+                    prgConnect.setVisibility(View.VISIBLE);
+                    txtConnect.setVisibility(View.VISIBLE);
+                    fab.setEnabled(false);
+                    // setup to use essp
+                    deviceCom.setup(ftDev, 0, false, true, 0x0123456701234567L);
                     deviceCom.start();
                 } else {
                     Toast.makeText(MainActivity.this, "No USB connection detected!", Toast.LENGTH_SHORT).show();
@@ -214,33 +244,97 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        bttnPay = (Button) findViewById(R.id.bttnPay);
+        bttnPay.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+
+
+                AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
+                builder.setTitle("Enter payment amount " + m_DeviceCountry);
+
+                final NumberPicker input = new NumberPicker(MainActivity.this);
+                input.setDisplayedValues(null);
+                input.setMinValue(1);
+                input.setMaxValue(pickerValues.length);
+                input.setDisplayedValues(pickerValues);
+                builder.setView(input);
+
+                builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        ItlCurrency curpay = new ItlCurrency();
+                        curpay.country = m_DeviceCountry;
+                        curpay.value = Integer.valueOf(pickerValues[input.getValue() - 1]) * 100;
+                        Toast.makeText(MainActivity.this, "Payout " + m_DeviceCountry + " " + String.valueOf(pickerValues[input.getValue() - 1]), Toast.LENGTH_SHORT).show();
+                        deviceCom.PayoutAmount(curpay);
+                    }
+                });
+                builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        dialog.cancel();
+                    }
+                });
+
+                builder.show();
+
+
+            }
+        });
+
+        bttnEmpty = (Button) findViewById(R.id.bttnEmpty);
+        bttnEmpty.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                deviceCom.EmptyPayout();
+            }
+        });
+
+        /**
+         * Click on channel item to toggle route
+         */
+        listChannels.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> parent, final View view, int position, long id) {
+                int pos = position + 1;
+
+                ItlCurrency r_cur = sspDevice.currency.get(position);
+                PayoutRoute rt = null;
+                if (r_cur.route == PayoutRoute.PayoutStore) {
+                    rt = PayoutRoute.Cashbox;
+                } else {
+                    rt = PayoutRoute.PayoutStore;
+                }
+                deviceCom.SetPayoutRoute(r_cur, rt);
+            }
+
+        });
+
 
     }
 
 
-
-
-    public static MainActivity getInstance(){
+    public static MainActivity getInstance() {
 
         return instance;
     }
 
 
-    public static void DisplaySetUp(SSPDevice dev)
-    {
-
+    public static void DisplaySetUp(SSPDevice dev) {
+        // set this instance device object
         sspDevice = dev;
 
-
-
         fab.setVisibility(View.INVISIBLE);
+        prgConnect.setVisibility(View.INVISIBLE);
+        txtConnect.setVisibility(View.INVISIBLE);
         bvDisplay.setVisibility(View.VISIBLE);
 
-        // check for type comapable
-        if(dev.type != SSPDeviceType.BillValidator){
+        // check for type comparable
+        if (dev.type != SSPDeviceType.NoteFloat) {
             AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.getInstance());
             // 2. Chain together various setter methods to set the dialog characteristics
-            builder.setMessage("Connected device is not BNV (" + dev.type.toString() + ")")
+            builder.setMessage("Connected device is not Note Float (" + dev.type.toString() + ")")
                     .setTitle("BNV");
             builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
                 @Override
@@ -265,15 +359,9 @@ public class MainActivity extends AppCompatActivity {
         txtSerial.append(" " + String.valueOf(dev.serialNumber));
         txtDataset.append(dev.datasetVersion);
 
+        m_DeviceCountry = dev.shortDatasetVersion;
                 /* display the channel info */
-        channelValues.clear();
-        for (ItlCurrency itlCurrency : dev.currency) {
-            String v = itlCurrency.country + " " + String.format("%.2f", itlCurrency.realvalue);
-            channelValues.add(v);
-        }
-
-        adapterChannels.notifyDataSetChanged();
-
+        DisplayChannels();
 
         // if device has barcode hardware
         if (dev.barCodeReader.hardWareConfig != SSPDevice.BarCodeStatus.None) {
@@ -289,11 +377,63 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
+    private static void DisplayChannels() {
+
+                /* display the channel info */
+        list = new ArrayList<HashMap<String, String>>();
+        HashMap<String, String> hdr = new HashMap<String, String>();
+        hdr.put(Constants.FIRST_COLUMN, "Code");
+        hdr.put(Constants.SECOND_COLUMN, "Value");
+        hdr.put(Constants.THIRD_COLUMN, "Stored");
+        hdr.put(Constants.FOURTH_COLUMN, "Route");
+        double totalValue = 0.0;
+        for (ItlCurrency itlCurrency : sspDevice.currency) {
+            HashMap<String, String> temp = new HashMap<String, String>();
+            temp.put(Constants.FIRST_COLUMN, itlCurrency.country);
+            temp.put(Constants.SECOND_COLUMN, String.valueOf(String.format("%.2f", itlCurrency.realvalue)));
+            temp.put(Constants.THIRD_COLUMN, String.valueOf(itlCurrency.storedLevel));
+            double vl = itlCurrency.realvalue * (double) itlCurrency.storedLevel;
+            temp.put(Constants.FOURTH_COLUMN, itlCurrency.route.toString());
+            list.add(temp);
+            totalValue += vl;
+        }
+        HashMap<String, String> tot = new HashMap<String, String>();
+        tot.put(Constants.FIRST_COLUMN, "");
+        tot.put(Constants.SECOND_COLUMN, "Total");
+        tot.put(Constants.THIRD_COLUMN, String.format("%.2f", totalValue));
+        tot.put(Constants.FOURTH_COLUMN, "");
+        list.add(tot);
+
+        ListViewAdapter adapter = new ListViewAdapter(MainActivity.getInstance(), list);
+        listChannels.setAdapter(adapter);
+
+        // update the picker values
+        if (sspDevice.minPayout > 0 && sspDevice.minPayout != -1) {
+            int intervalCount = sspDevice.storedPayoutValue / sspDevice.minPayout;
+            pickerValues = new String[intervalCount];
+            for (int i = 1; i <= intervalCount; i++) {
+                String number = Integer.toString(i * (sspDevice.minPayout / 100));
+                pickerValues[i - 1] = number;
+            }
+        }
+
+        if(sspDevice.storedPayoutValue > 0){
+            bttnPay.setEnabled(true);
+            bttnEmpty.setEnabled(true);
+        }else{
+            bttnEmpty.setEnabled(false);
+            bttnPay.setEnabled(false);
+        }
+
+
+    }
+
+
     public static void DisplayEvents(DeviceEvent ev) {
 
         switch (ev.event) {
             case CommunicationsFailure:
-
+                Toast.makeText(getInstance(), "Device coms Failure " + ev.currency, Toast.LENGTH_SHORT).show();
                 break;
             case Ready:
                 eventValues[0] = "Ready";
@@ -306,7 +446,7 @@ public class MainActivity extends AppCompatActivity {
             case BillEscrow:
                 eventValues[0] = "Bill Escrow";
                 eventValues[1] = ev.currency + " " +
-                        String.format("%.2f", ev.value);
+                        String.valueOf((int) ev.value) + ".00";
                 if (swEscrow.isChecked()) {
                     bttnAccept.setVisibility(View.VISIBLE);
                     bttnReject.setVisibility(View.VISIBLE);
@@ -330,12 +470,12 @@ public class MainActivity extends AppCompatActivity {
             case BillFraud:
                 eventValues[0] = "Bill Fraud";
                 eventValues[1] = ev.currency + " " +
-                        String.format("%.2f", ev.value);
+                        String.valueOf((int) ev.value) + ".00";
                 break;
             case BillCredit:
                 eventValues[0] = "Bill Credit";
                 eventValues[1] = ev.currency + " " +
-                        String.format("%.2f", ev.value);
+                        String.valueOf((int) ev.value) + ".00";
                 break;
             case Full:
                 eventValues[0] = "Bill Cashbox full";
@@ -380,10 +520,157 @@ public class MainActivity extends AppCompatActivity {
                 eventValues[0] = "Barcode ticket stacked";
                 eventValues[1] = "";
                 break;
+            case BillStoredInPayout:
+                eventValues[0] = "Bill Stored in payout";
+                eventValues[1] = ev.currency + " " +
+                        String.valueOf((int) ev.value) + ".00";
+                break;
+            case PayoutOutOfService:
+                eventValues[0] = "Payout out of service!";
+                eventValues[1] = "";
+                break;
+            case Dispensing:
+                eventValues[0] = "Bill dispensing";
+                eventValues[1] = ev.currency + " " +
+                        String.valueOf((int) ev.value) + ".00";
+                break;
+            case Dispensed:
+                eventValues[0] = "Bill Dispensed";
+                eventValues[1] = ev.currency + " " +
+                        String.valueOf((int) ev.value) + ".00";
+                break;
+            case Emptying:
+                eventValues[0] = "Payout emptying...";
+                eventValues[1] = "";
+                break;
+            case Emptied:
+                eventValues[0] = "Payout emptied";
+                eventValues[1] = "";
+                break;
+            case SmartEmptying:
+                eventValues[0] = "Payout emptying...";
+                eventValues[1] = ev.currency + " " +
+                        String.valueOf((int) ev.value) + ".00";
+                break;
+            case SmartEmptied:
+                eventValues[0] = "Payout emptied";
+                eventValues[1] = ev.currency + " " +
+                        String.valueOf((int) ev.value) + ".00";
+                break;
+            case BillTransferedToStacker:
+                break;
+            case BillHeldInBezel:
+                break;
+            case BillInStoreAtReset:
+                break;
+            case BillInStackerAtReset:
+                break;
+            case BillDispensedAtReset:
+                break;
+            case NoteFloatRemoved:
+                eventValues[0] = "NF detatched";
+                eventValues[1] = "";
+                break;
+            case NoteFloatAttached:
+                eventValues[0] = "NF attached";
+                eventValues[1] = "";
+                break;
+            case DeviceFull:
+                eventValues[0] = "Payout Device Full";
+                eventValues[1] = "";
+                break;
+            case RefillBillCredit:
+                break;
+
         }
+
         adapterEvents.notifyDataSetChanged();
 
 
+    }
+
+
+    public static void DisplayPayoutEvents(SSPPayoutEvent ev) {
+
+        String pd = null;
+
+        switch (ev.event) {
+            case CashPaidOut:
+                pd = "Paying " + ev.country + " " + String.format("%.2f", ev.realvalue) + " of " +
+                        " " + ev.country + " " + String.format("%.2f", ev.realvalueRequested);
+                txtPayoutStatus.setText(pd);
+                DisplayChannels();
+                break;
+            case CashStoreInPayout:
+                DisplayChannels();
+                break;
+            case CashLevelsChanged:
+                DisplayChannels();
+                break;
+            case PayoutStarted:
+                pd = "Request " + ev.country + " " + String.format("%.2f", ev.realvalue) + " of " +
+                        " " + ev.country + " " + String.format("%.2f", ev.realvalueRequested);
+                txtPayoutStatus.setText(pd);
+                lPayoutControl.setVisibility(View.INVISIBLE);
+                break;
+            case PayoutEnded:
+                pd = "Paid " + ev.country + " " + String.format("%.2f", ev.realvalue) + " of " +
+                        " " + ev.country + " " + String.format("%.2f", ev.realvalueRequested);
+                txtPayoutStatus.setText(pd);
+                lPayoutControl.setVisibility(View.VISIBLE);
+                break;
+            case PayinStarted:
+                lPayoutControl.setVisibility(View.INVISIBLE);
+                break;
+            case PayinEnded:
+                lPayoutControl.setVisibility(View.VISIBLE);
+                break;
+            case EmptyStarted:
+                txtPayoutStatus.setText("");
+                lPayoutControl.setVisibility(View.INVISIBLE);
+                Toast.makeText(getInstance(), "Empty started", Toast.LENGTH_SHORT).show();
+                break;
+            case EmptyEnded:
+                txtPayoutStatus.setText("");
+                lPayoutControl.setVisibility(View.VISIBLE);
+                Toast.makeText(getInstance(), "Empty ended", Toast.LENGTH_SHORT).show();
+                break;
+            case PayoutConfigurationFail:
+                //TODO handle config failures
+                break;
+            case PayoutAmountInvalid:
+                eventValues[0] = "Payout request invalid amount";
+                eventValues[1] = ev.country + " " + String.valueOf(ev.value);
+                adapterEvents.notifyDataSetChanged();
+                Toast.makeText(getInstance(), "Payout amount request invalid", Toast.LENGTH_SHORT).show();
+                break;
+            case PayoutRequestFail:
+                //TODO handle this
+                break;
+
+            case RouteChanged:
+                DisplayChannels();
+                break;
+            case PayoutDeviceNotConnected:
+                eventValues[0] = "Payout device not connected!";
+                eventValues[1] = "";
+                adapterEvents.notifyDataSetChanged();
+                Toast.makeText(getInstance(), "Payout device not connected", Toast.LENGTH_SHORT).show();
+                break;
+            case PayoutDeviceEmpty:
+                eventValues[0] = "Payout device is empty!";
+                eventValues[1] = "";
+                adapterEvents.notifyDataSetChanged();
+                Toast.makeText(getInstance(), "Payout device empty", Toast.LENGTH_SHORT).show();
+                break;
+            case PayoutDeviceDisabled:
+                eventValues[0] = "Payout device is disabled";
+                eventValues[1] = "";
+                adapterEvents.notifyDataSetChanged();
+                Toast.makeText(getInstance(), "Payout device disabled", Toast.LENGTH_SHORT).show();
+                break;
+
+        }
     }
 
 
@@ -427,29 +714,27 @@ public class MainActivity extends AppCompatActivity {
      *  Handler for selecting a download file
      *  All download files need to be in the Download folder
      */
-    public void openFolder()
-    {
+    public void openFolder() {
 
-        if(deviceCom == null){
+        if (deviceCom == null) {
             return;
         }
 
         int devcode = deviceCom.GetDeviceCode();
-       if(devcode < 0){
+        if (devcode < 0) {
             return;
         }
 
-        Intent intent = new Intent(this,ListFiles.class);
+        Intent intent = new Intent(this, ListFiles.class);
         // send the current device code
-        intent.putExtra("deviceCode", (byte)devcode);
-        startActivityForResult(intent,123);
+        intent.putExtra("deviceCode", (byte) devcode);
+        startActivityForResult(intent, 123);
 
 
     }
 
 
-    public static void UpdateFileDownload(SSPUpdate sspUpdate)
-    {
+    public static void UpdateFileDownload(SSPUpdate sspUpdate) {
 
 
         switch (sspUpdate.UpdateStatus) {
@@ -520,14 +805,13 @@ public class MainActivity extends AppCompatActivity {
 
             } catch (IOException e) {
                 e.printStackTrace();
-             //   txtEvents.append(R.string.unable_to_load + "\r\n");
+                //   txtEvents.append(R.string.unable_to_load + "\r\n");
             }
         }
     }
 
 
-    private void ClearDisplay()
-    {
+    private void ClearDisplay() {
         progress.setProgress(0);
         txtFirmware.setText(getResources().getString(R.string.firmware_title));
         txtDevice.setText(getResources().getString(R.string.device_title));
@@ -546,7 +830,6 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
-
     /**********   USB functions   ******************************************/
 
 
@@ -558,6 +841,9 @@ public class MainActivity extends AppCompatActivity {
                 openDevice();
             } else if (UsbManager.ACTION_USB_DEVICE_DETACHED.equals(action)) {
                 closeDevice();
+                bvDisplay.setVisibility(View.INVISIBLE);
+                fab.setVisibility(View.VISIBLE);
+                fab.setEnabled(true);
             }
         }
     };
@@ -609,8 +895,10 @@ public class MainActivity extends AppCompatActivity {
 
     private static void closeDevice() {
 
-        if (ftDev != null) {
+        if(deviceCom != null) {
             deviceCom.Stop();
+        }
+        if (ftDev != null) {
             ftDev.close();
         }
     }
