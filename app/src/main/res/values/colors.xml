@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="colorPrimary">#3F51B5</color>
+    <color name="colorPrimaryDark">#303F9F</color>
+    <color name="colorAccent">#FF4081</color>
+    <color name="colorEventBack">#fffbe0</color>
+    <color name="colorHeaderBack">#e8f3ff</color>
+    <color name="colorChannelBack">#ecffe0</color>
+    <color name="colorBttnBack">#ffffff</color>
+    <color name="colorWhite">#ffffff</color>
+    <color name="colorEscrow">#4ca2ff</color>
+</resources>
