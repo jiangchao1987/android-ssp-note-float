@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.system.itl.ssp_bnv">
+    package="com.system.itl.ssp_note_float">
 
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
@@ -26,7 +26,8 @@
                 <action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" />
             </intent-filter>
         </activity>
-        <activity android:name=".ListFiles"></activity>
+        <activity android:name=".ListFiles" />
+        <activity android:name=".ListBills"></activity>
     </application>
 
 </manifest>

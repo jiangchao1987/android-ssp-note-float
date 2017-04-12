@@ -1,4 +1,4 @@
-package com.system.itl.ssp_bnv;
+package com.system.itl.ssp_note_float;
 
 import org.junit.Test;
 

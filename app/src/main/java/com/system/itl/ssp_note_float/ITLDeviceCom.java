@@ -1,6 +1,8 @@
-package com.system.itl.ssp_bnv;
+package com.system.itl.ssp_note_float;
 
 import com.ftdi.j2xx.FT_Device;
+
+import java.util.ArrayList;
 
 import device.itl.sspcoms.BarCodeReader;
 import device.itl.sspcoms.DeviceEvent;
@@ -9,6 +11,7 @@ import device.itl.sspcoms.DeviceFileUpdateListener;
 import device.itl.sspcoms.DevicePayoutEventListener;
 import device.itl.sspcoms.DeviceSetupListener;
 import device.itl.sspcoms.ItlCurrency;
+import device.itl.sspcoms.ItlCurrencyValue;
 import device.itl.sspcoms.PayoutRoute;
 import device.itl.sspcoms.SSPComsConfig;
 import device.itl.sspcoms.SSPDevice;
@@ -264,6 +267,23 @@ public class ITLDeviceCom extends Thread implements DeviceSetupListener, DeviceE
     {
         if(ssp != null){
             ssp.EmptyPayout();
+        }
+    }
+
+
+    ArrayList<ItlCurrencyValue> GetBillPositions()
+    {
+        if(ssp != null){
+            return ssp.GetStoredBillPositions();
+        }else{
+            return null;
+        }
+    }
+
+    void NFBillAction(SSPSystem.BillActionRequest action)
+    {
+        if(ssp != null){
+            ssp.BillPayoutAction(action);
         }
     }
 

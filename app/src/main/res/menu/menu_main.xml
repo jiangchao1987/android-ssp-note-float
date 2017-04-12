@@ -1,19 +1,21 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    tools:context="com.system.itl.ssp_bnv.com.system.itl.ssp_note_float.MainActivity">
+    tools:context="com.system.itl.ssp_note_float.com.system.itl.ssp_note_float.MainActivity">
 
-    <item
-    android:id="@+id/action_settings"
-    android:orderInCategory="100"
-    android:title="@string/action_settings"
-    app:showAsAction="never" />
 
     <item
     android:id="@+id/action_downloadFile"
     android:orderInCategory="100"
     android:title="@string/action_download_file"
     app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_show_bills"
+        android:orderInCategory="100"
+        android:title="@string/action_bill_view"
+        app:showAsAction="never" />
+
 
     <item
         android:id="@+id/action_shutdown"

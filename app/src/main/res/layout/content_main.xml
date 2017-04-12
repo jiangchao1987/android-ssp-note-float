@@ -6,7 +6,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     app:layout_behavior="@string/appbar_scrolling_view_behavior"
-    tools:context="com.system.itl.ssp_bnv.MainActivity"
+    tools:context="com.system.itl.ssp_note_float.MainActivity"
     tools:showIn="@layout/activity_main"
     android:orientation="vertical">
 
@@ -154,6 +154,8 @@
             android:orientation="horizontal"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
+            android:weightSum="4"
+
             android:id="@+id/layPayoutControl">
 
             <Button
@@ -162,14 +164,38 @@
                 android:layout_height="wrap_content"
                 android:id="@+id/bttnEmpty"
                 android:layout_gravity="center_vertical"
+                android:textSize="10sp"
+                android:textAllCaps="false"
                 android:layout_weight="1" />
 
             <Button
-                android:text="Pay"
+                android:id="@+id/bttStackOneBill"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_vertical"
+                android:layout_weight="1"
+                android:textSize="10sp"
+                android:textAllCaps="false"
+                android:text="Stack a bill" />
+
+            <Button
+                android:id="@+id/bttnPayOneBill"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_vertical"
+                android:layout_weight="1"
+                android:textSize="10sp"
+                android:textAllCaps="false"
+                android:text="Pay a bill" />
+
+            <Button
+                android:text="Pay amount"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center_vertical"
                 android:id="@+id/bttnPay"
+                android:textSize="10sp"
+                android:textAllCaps="false"
                 android:layout_weight="1" />
 
 

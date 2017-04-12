@@ -1,16 +1,20 @@
-package com.system.itl.ssp_bnv;
+package com.system.itl.ssp_note_float;
 
+import android.Manifest;
 import android.app.ProgressDialog;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.pm.PackageManager;
 import android.hardware.usb.UsbManager;
 import android.os.Bundle;
 import android.os.Environment;
 import android.support.design.widget.FloatingActionButton;
 
+import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
@@ -35,8 +39,6 @@ import com.ftdi.j2xx.D2xxManager;
 import com.ftdi.j2xx.FT_Device;
 
 
-import org.w3c.dom.Text;
-
 import java.io.DataInputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -48,6 +50,7 @@ import java.util.List;
 import device.itl.sspcoms.BarCodeReader;
 import device.itl.sspcoms.DeviceEvent;
 import device.itl.sspcoms.ItlCurrency;
+import device.itl.sspcoms.ItlCurrencyValue;
 import device.itl.sspcoms.PayoutRoute;
 import device.itl.sspcoms.SSPDevice;
 import device.itl.sspcoms.SSPDeviceType;
@@ -81,6 +84,8 @@ public class MainActivity extends AppCompatActivity {
     static TextView txtPayoutStatus;
     static TextView txtConnect;
     static ProgressBar prgConnect;
+    static Button bttnPayNext;
+    static Button bttnStackNext;
 
     static ArrayList<HashMap<String, String>> list;
     static String[] pickerValues;
@@ -96,6 +101,9 @@ public class MainActivity extends AppCompatActivity {
     private static MainActivity instance = null;
     private static String m_DeviceCountry = null;
 
+    private static final int MY_PERMISSIONS_REQUEST_READ_STORAGE = 0;
+    private static MenuItem downloadMenuItem;
+    private static MenuItem storedBillMenuItem;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -107,6 +115,35 @@ public class MainActivity extends AppCompatActivity {
 
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
+
+        txtConnect = (TextView) findViewById(R.id.txtConnection);
+
+
+        int permissionCheck = ContextCompat.checkSelfPermission(this,
+                Manifest.permission.READ_EXTERNAL_STORAGE);
+        if (permissionCheck != PackageManager.PERMISSION_GRANTED) {
+
+            if (ActivityCompat.shouldShowRequestPermissionRationale(this,
+                    Manifest.permission.READ_EXTERNAL_STORAGE)) {
+
+                txtConnect.setText("This app requires access to the downloads directory in order to load download files.");
+                txtConnect.setVisibility(View.VISIBLE);
+
+                ActivityCompat.requestPermissions(this,
+                        new String[]{Manifest.permission.READ_EXTERNAL_STORAGE},
+                        MY_PERMISSIONS_REQUEST_READ_STORAGE);
+
+
+            } else {
+                ActivityCompat.requestPermissions(this,
+                        new String[]{Manifest.permission.READ_EXTERNAL_STORAGE},
+                        MY_PERMISSIONS_REQUEST_READ_STORAGE);
+            }
+
+
+        }
+
+
         bvDisplay = (LinearLayout) findViewById(R.id.content_note_float);
         bvDisplay.setVisibility(View.INVISIBLE);
         mainActivity = this;
@@ -117,8 +154,7 @@ public class MainActivity extends AppCompatActivity {
         txtPayoutStatus.setText("");
 
 
-        prgConnect = (ProgressBar)findViewById(R.id.progressBarConnect);
-        txtConnect = (TextView)findViewById(R.id.txtConnection);
+        prgConnect = (ProgressBar) findViewById(R.id.progressBarConnect);
 
 
         progress = new ProgressDialog(MainActivity.this);
@@ -311,6 +347,22 @@ public class MainActivity extends AppCompatActivity {
 
         });
 
+        bttnStackNext = (Button)findViewById(R.id.bttStackOneBill);
+        bttnStackNext.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                deviceCom.NFBillAction(SSPSystem.BillActionRequest.Stack);
+            }
+        });
+
+        bttnPayNext = (Button)findViewById(R.id.bttnPayOneBill);
+        bttnPayNext.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                deviceCom.NFBillAction(SSPSystem.BillActionRequest.Payout);
+            }
+        });
+
 
     }
 
@@ -339,7 +391,7 @@ public class MainActivity extends AppCompatActivity {
             builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
                 @Override
                 public void onClick(DialogInterface dialog, int which) {
-
+                    getInstance().finish();
                 }
             });
 
@@ -352,6 +404,8 @@ public class MainActivity extends AppCompatActivity {
 
         }
 
+        downloadMenuItem.setEnabled(true);
+        storedBillMenuItem.setVisible(true);
 
                 /* device details  */
         txtFirmware.append(" " + dev.firmwareVersion);
@@ -417,12 +471,16 @@ public class MainActivity extends AppCompatActivity {
             }
         }
 
-        if(sspDevice.storedPayoutValue > 0){
+        if (sspDevice.storedPayoutValue > 0) {
             bttnPay.setEnabled(true);
             bttnEmpty.setEnabled(true);
-        }else{
+            bttnPayNext.setEnabled(true);
+            bttnStackNext.setEnabled(true);
+        } else {
             bttnEmpty.setEnabled(false);
             bttnPay.setEnabled(false);
+            bttnStackNext.setEnabled(false);
+            bttnPayNext.setEnabled(false);
         }
 
 
@@ -440,6 +498,7 @@ public class MainActivity extends AppCompatActivity {
                 eventValues[1] = "";
                 break;
             case BillRead:
+                txtPayoutStatus.setText("");
                 eventValues[0] = "Reading";
                 eventValues[1] = "";
                 break;
@@ -453,7 +512,10 @@ public class MainActivity extends AppCompatActivity {
                 }
                 break;
             case BillStacked:
-
+                eventValues[0] = "Bill Stacked";
+                eventValues[1] = ev.currency + " " +
+                        String.valueOf((int) ev.value) + ".00";
+                lPayoutControl.setVisibility(View.VISIBLE);
                 break;
             case BillReject:
                 eventValues[0] = "Bill Reject";
@@ -558,6 +620,9 @@ public class MainActivity extends AppCompatActivity {
                         String.valueOf((int) ev.value) + ".00";
                 break;
             case BillTransferedToStacker:
+                eventValues[0] = "Stacker transfer";
+                eventValues[1] = ev.currency + " " +
+                        String.valueOf((int) ev.value) + ".00";
                 break;
             case BillHeldInBezel:
                 break;
@@ -647,7 +712,15 @@ public class MainActivity extends AppCompatActivity {
             case PayoutRequestFail:
                 //TODO handle this
                 break;
+            case PayStackerBillStarted:
+                pd = "Stacking " + ev.country + " " + String.format("%.2f", ev.realvalue) + " of " +
+                        " " + ev.country + " " + String.format("%.2f", ev.realvalueRequested);
+                txtPayoutStatus.setText(pd);
+                lPayoutControl.setVisibility(View.INVISIBLE);
+                break;
+            case PayStackerBillEnded:
 
+                break;
             case RouteChanged:
                 DisplayChannels();
                 break;
@@ -687,8 +760,16 @@ public class MainActivity extends AppCompatActivity {
     public boolean onCreateOptionsMenu(Menu menu) {
         // Inflate the menu; this adds items to the action bar if it is present.
         getMenuInflater().inflate(R.menu.menu_main, menu);
+
+        downloadMenuItem = menu.getItem(0);
+        downloadMenuItem.setEnabled(false);
+
+        storedBillMenuItem = menu.getItem(1);
+        storedBillMenuItem.setVisible(false);
+
         return true;
     }
+
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
@@ -698,6 +779,9 @@ public class MainActivity extends AppCompatActivity {
             case R.id.action_downloadFile:
                 openFolder();
                 return true;
+            case R.id.action_show_bills:
+                ShowNFBills();
+                return true;
             case R.id.action_shutdown:
                 deviceCom.Stop();
                 closeDevice();
@@ -706,6 +790,28 @@ public class MainActivity extends AppCompatActivity {
                 return super.onOptionsItemSelected(item);
         }
 
+
+    }
+
+
+    /**
+     * Start a new activity to display a list of the stored bills in the note float
+     */
+    private void ShowNFBills() {
+
+        Intent intent = new Intent(this, ListBills.class);
+        ArrayList<String> strList = new ArrayList<>();
+        ArrayList<ItlCurrencyValue> cvals = deviceCom.GetBillPositions();
+        int i = 0;
+        // create strin garray to pass to intent
+        for (ItlCurrencyValue cval : cvals
+                ) {
+            String nv = String.valueOf(i + 1) + " " + cval.country + " " + String.format("%.2f", cval.realValue);
+            strList.add(nv);
+            i++;
+        }
+        intent.putStringArrayListExtra("NF_Bills", strList);
+        startActivity(intent);
 
     }
 
@@ -830,6 +936,32 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
+    @Override
+    public void onRequestPermissionsResult(int requestCode,
+                                           String permissions[], int[] grantResults) {
+        switch (requestCode) {
+            case MY_PERMISSIONS_REQUEST_READ_STORAGE: {
+                // If request is cancelled, the result arrays are empty.
+                if (grantResults.length > 0
+                        && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+
+                    // permission was granted, yay! Do the
+                    // contacts-related task you need to do.
+
+                } else {
+
+                    // permission denied, boo! Disable the
+                    // functionality that depends on this permission.
+                }
+                return;
+            }
+
+            // other 'case' lines to check for other
+            // permissions this app might request
+        }
+    }
+
+
     /**********   USB functions   ******************************************/
 
 
@@ -895,7 +1027,7 @@ public class MainActivity extends AppCompatActivity {
 
     private static void closeDevice() {
 
-        if(deviceCom != null) {
+        if (deviceCom != null) {
             deviceCom.Stop();
         }
         if (ftDev != null) {
