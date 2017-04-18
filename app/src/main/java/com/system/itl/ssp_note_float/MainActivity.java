@@ -367,6 +367,13 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
+    @Override
+    protected void onDestroy() {
+        this.unregisterReceiver(mUsbReceiver);
+        super.onDestroy();
+    }
+
+
     public static MainActivity getInstance() {
 
         return instance;
@@ -461,6 +468,9 @@ public class MainActivity extends AppCompatActivity {
         ListViewAdapter adapter = new ListViewAdapter(MainActivity.getInstance(), list);
         listChannels.setAdapter(adapter);
 
+
+        /*
+
         // update the picker values
         if (sspDevice.minPayout > 0 && sspDevice.minPayout != -1) {
             int intervalCount = sspDevice.storedPayoutValue / sspDevice.minPayout;
@@ -469,7 +479,30 @@ public class MainActivity extends AppCompatActivity {
                 String number = Integer.toString(i * (sspDevice.minPayout / 100));
                 pickerValues[i - 1] = number;
             }
+        }*/
+
+        // update the picker values
+        if (sspDevice.minPayout > 0 && sspDevice.minPayout != -1) {
+            int intervalCount = sspDevice.storedPayoutValue / sspDevice.minPayout;
+            int ind = 0;
+            int vl[] = new int[intervalCount];
+            // build the picker interval values
+            for (int i = 1; i <= intervalCount; i++) {
+                // check if this payout is possible
+                if(sspDevice.IsSPPayoutPossible(sspDevice.shortDatasetVersion,i * (sspDevice.minPayout) )){
+                    vl[ind++] = i * (sspDevice.minPayout / 100);
+                }
+            }
+            if(ind > 0) {
+                // all valid picker values
+                pickerValues = new String[ind];
+                for (int i = 0; i < ind; i++) {
+                    pickerValues[i] = Integer.toString(vl[i]);
+                }
+            }
+
         }
+
 
         if (sspDevice.storedPayoutValue > 0) {
             bttnPay.setEnabled(true);
