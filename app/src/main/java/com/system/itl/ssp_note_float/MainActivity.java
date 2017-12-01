@@ -338,9 +338,9 @@ public class MainActivity extends AppCompatActivity {
                 ItlCurrency r_cur = sspDevice.currency.get(position);
                 PayoutRoute rt = null;
                 if (r_cur.route == PayoutRoute.PayoutStore) {
-                    rt = PayoutRoute.Cashbox;
+                    rt = PayoutRoute.Cashbox;//零钱箱
                 } else {
-                    rt = PayoutRoute.PayoutStore;
+                    rt = PayoutRoute.PayoutStore;//找零模块
                 }
                 deviceCom.SetPayoutRoute(r_cur, rt);
             }
@@ -532,11 +532,11 @@ public class MainActivity extends AppCompatActivity {
                 break;
             case BillRead:
                 txtPayoutStatus.setText("");
-                eventValues[0] = "Reading";
+                eventValues[0] = "Reading";//投入钱后，识别钱中。。。
                 eventValues[1] = "";
                 break;
             case BillEscrow:
-                eventValues[0] = "Bill Escrow";
+                eventValues[0] = "Bill Escrow";//钱在暂存区，所有投入的纸币不管是前往找零模块还是零钱箱都会经过暂存区。
                 eventValues[1] = ev.currency + " " +
                         String.valueOf((int) ev.value) + ".00";
                 if (swEscrow.isChecked()) {
@@ -545,13 +545,13 @@ public class MainActivity extends AppCompatActivity {
                 }
                 break;
             case BillStacked:
-                eventValues[0] = "Bill Stacked";
+                eventValues[0] = "Bill Stacked";//钱进入钱箱
                 eventValues[1] = ev.currency + " " +
                         String.valueOf((int) ev.value) + ".00";
                 lPayoutControl.setVisibility(View.VISIBLE);
                 break;
             case BillReject:
-                eventValues[0] = "Bill Reject";
+                eventValues[0] = "Bill Reject";//投入的钱被弹出来了，也就是说纸币器没有收该张钱。
                 eventValues[1] = "";
                 if (swEscrow.isChecked()) {
                     bttnAccept.setVisibility(View.INVISIBLE);
@@ -616,7 +616,7 @@ public class MainActivity extends AppCompatActivity {
                 eventValues[1] = "";
                 break;
             case BillStoredInPayout:
-                eventValues[0] = "Bill Stored in payout";
+                eventValues[0] = "Bill Stored in payout";//钱存在了找零模块
                 eventValues[1] = ev.currency + " " +
                         String.valueOf((int) ev.value) + ".00";
                 break;
@@ -625,21 +625,21 @@ public class MainActivity extends AppCompatActivity {
                 eventValues[1] = "";
                 break;
             case Dispensing:
-                eventValues[0] = "Bill dispensing";
+                eventValues[0] = "Bill dispensing";//退钱中，直到纸币弹出到纸币器口。
                 eventValues[1] = ev.currency + " " +
                         String.valueOf((int) ev.value) + ".00";
                 break;
             case Dispensed:
-                eventValues[0] = "Bill Dispensed";
+                eventValues[0] = "Bill Dispensed";//退完钱，也就是把退出来的纸币取走了。
                 eventValues[1] = ev.currency + " " +
                         String.valueOf((int) ev.value) + ".00";
                 break;
             case Emptying:
-                eventValues[0] = "Payout emptying...";
+                eventValues[0] = "Payout emptying...";//清空找零模块中。。。
                 eventValues[1] = "";
                 break;
             case Emptied:
-                eventValues[0] = "Payout emptied";
+                eventValues[0] = "Payout emptied";//找零模块已经清空。。。
                 eventValues[1] = "";
                 break;
             case SmartEmptying:
@@ -828,7 +828,7 @@ public class MainActivity extends AppCompatActivity {
 
 
     /**
-     * Start a new activity to display a list of the stored bills in the note float
+     * Start a new activity to display a list of the stored bills in the note float（找零模块）
      */
     private void ShowNFBills() {
 
