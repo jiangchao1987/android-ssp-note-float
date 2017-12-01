@@ -49,12 +49,20 @@ public class ITLDeviceCom extends Thread implements DeviceSetupListener, DeviceE
     }
 
 
+    /**
+     * 配置纸币器
+     * @param ftdev
+     * @param address
+     * @param escrow
+     * @param essp
+     * @param key
+     */
     public void setup(FT_Device ftdev,int address, boolean escrow, boolean essp, long key){
 
         ftDev = ftdev;
-        ssp.SetAddress(address);
-        ssp.EscrowMode(escrow);
-        ssp.SetESSPMode(essp, key);
+        ssp.SetAddress(address);//1.1设置地址
+        ssp.EscrowMode(escrow);//1.4暂存模式
+        ssp.SetESSPMode(essp, key);//1.6设置ESSP模式
 
     }
 
@@ -71,13 +79,14 @@ public class ITLDeviceCom extends Thread implements DeviceSetupListener, DeviceE
 
             // poll for transmit data
             synchronized (ftDev) {
-                int newdatalen = ssp.GetNewData(wbuf);
+                int newdatalen = ssp.GetNewData(wbuf);//1.15获取新数据
                 if (newdatalen > 0) {
+                    //GetDownLoadState 1.12获取下载状态
                     if(ssp.GetDownloadState() != SSPSystem.DownloadSetupState.active) {
                         ftDev.purge((byte) 1);
                     }
                     ftDev.write(wbuf, newdatalen);
-                    ssp.SetComsBufferWritten(true);
+                    ssp.SetComsBufferWritten(true);//1.14设置指令缓冲
                 }
             }
 
@@ -97,7 +106,7 @@ public class ITLDeviceCom extends Thread implements DeviceSetupListener, DeviceE
 
 
             // coms config changes
-            final SSPComsConfig cfg = ssp.GetComsConfig();
+            final SSPComsConfig cfg = ssp.GetComsConfig();//1.13获取指令配置
             if(cfg.configUpdate == SSPComsConfig.ComsConfigChangeState.ccNewConfig){
                 cfg.configUpdate = SSPComsConfig.ComsConfigChangeState.ccUpdating;
                 MainActivity.mainActivity.runOnUiThread(new Runnable() {
@@ -201,7 +210,7 @@ public class ITLDeviceCom extends Thread implements DeviceSetupListener, DeviceE
 
     boolean SetSSPDownload(final SSPUpdate update)
     {
-        return ssp.SetDownload(update);
+        return ssp.SetDownload(update);//1.17设置下载
 
     }
 
@@ -214,12 +223,17 @@ public class ITLDeviceCom extends Thread implements DeviceSetupListener, DeviceE
 
     }
 
+    /**
+     * A command to disable the device for Bill entry after start-up
+     * A command to re-enable the device for Bill entry after a DisableDevice() command has been sent;
+     * @param en
+     */
     void SetDeviceEnable(boolean en) {
         if (ssp != null) {
             if (en) {
-                ssp.EnableDevice();
+                ssp.EnableDevice();//允许设备进入纸币
             }else {
-                ssp.DisableDevice();
+                ssp.DisableDevice();//禁止设备进入纸币
             }
         }
     }
@@ -234,7 +248,7 @@ public class ITLDeviceCom extends Thread implements DeviceSetupListener, DeviceE
     void SetBarcocdeConfig(BarCodeReader cfg)
     {
         if(ssp != null){
-            ssp.SetBarCodeConfiguration(cfg);
+            ssp.SetBarCodeConfiguration(cfg);//1.7设置条码配置
         }
     }
 
@@ -251,7 +265,7 @@ public class ITLDeviceCom extends Thread implements DeviceSetupListener, DeviceE
     void SetPayoutRoute(ItlCurrency cur, PayoutRoute rt)
     {
         if(ssp != null) {
-            ssp.SetPayoutRoute(cur, rt);
+            ssp.SetPayoutRoute(cur, rt);//1.8设置支付路线
         }
     }
 
@@ -259,14 +273,14 @@ public class ITLDeviceCom extends Thread implements DeviceSetupListener, DeviceE
     void PayoutAmount(ItlCurrency cur)
     {
         if(ssp != null) {
-            ssp.PayoutAmount(cur);
+            ssp.PayoutAmount(cur);//1.9设置支付金额
         }
     }
 
     void EmptyPayout()
     {
         if(ssp != null){
-            ssp.EmptyPayout();
+            ssp.EmptyPayout();//1.11清空支出箱
         }
     }
 
@@ -274,7 +288,7 @@ public class ITLDeviceCom extends Thread implements DeviceSetupListener, DeviceE
     ArrayList<ItlCurrencyValue> GetBillPositions()
     {
         if(ssp != null){
-            return ssp.GetStoredBillPositions();
+            return ssp.GetStoredBillPositions();//1.18获取纸币位置
         }else{
             return null;
         }
@@ -283,7 +297,7 @@ public class ITLDeviceCom extends Thread implements DeviceSetupListener, DeviceE
     void NFBillAction(SSPSystem.BillActionRequest action)
     {
         if(ssp != null){
-            ssp.BillPayoutAction(action);
+            ssp.BillPayoutAction(action);//1.19纸币支付动作
         }
     }
 
